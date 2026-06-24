@@ -1,144 +1,121 @@
-# Semantic Search & Cache — 20 Newsgroups
+# CacheVibe
 
-A lightweight semantic search system with fuzzy clustering and a custom semantic cache layer, built on the 20 Newsgroups dataset.
+### Intelligent Semantic Search & Adaptive Caching Platform
 
-## Architecture
+CacheVibe is an intelligent semantic search platform that combines dense vector retrieval, fuzzy clustering, and an adaptive semantic cache to deliver low-latency, context-aware information retrieval.
 
-```
-Query → Embed (all-MiniLM-L6-v2) → GMM cluster → Semantic cache check
-                                                     ├─ HIT  → return cached result
-                                                     └─ MISS → ChromaDB vector search
-                                                                → cache result → return
-```
+Instead of performing a full vector search for every query, the platform understands semantic similarity between user requests and reuses previous results whenever appropriate. This significantly reduces response latency while maintaining retrieval quality.
 
-**Key components:**
+The system demonstrates practical applications of:
 
-| Component           | Implementation                                 |
-|---------------------|-------------------------------------------------|
-| Embedding model     | `all-MiniLM-L6-v2` (384-dim, sentence-transformers) |
-| Vector store        | ChromaDB (local, persistent)                    |
-| Fuzzy clustering    | PCA (50-dim) + Gaussian Mixture Model           |
-| Semantic cache      | Custom dict+OrderedDict, cluster-bucketed, LRU  |
-| API                 | FastAPI + uvicorn                               |
+- Semantic embeddings
+- Vector databases
+- Fuzzy clustering
+- Similarity search
+- Intelligent caching strategies
+- Production-ready API design
 
-## Quick Start
+---
 
-### 1. Set up the environment
+## Problem Statement
 
-```bash
-python3 -m venv venv
-source venv/bin/activate
-pip install -r requirements.txt
-```
+Traditional search systems repeatedly execute expensive retrieval operations even when users ask semantically equivalent questions.
 
-### 2. Run data setup (one-time)
+Examples:
 
-This downloads the 20 Newsgroups dataset, computes embeddings, indexes them in ChromaDB, and fits the clustering model.
+- "What are the best graphics cards for gaming?"
+- "Which GPU is ideal for playing modern video games?"
 
-```bash
-python -m scripts.setup_data
-```
+Although both questions seek the same information, conventional systems process them independently.
 
-### 3. Start the service
+CacheVibe addresses this challenge by:
 
-```bash
-uvicorn app.main:app --host 0.0.0.0 --port 8000
-```
+1. Understanding semantic meaning
+2. Identifying related queries
+3. Reusing previously computed results
+4. Reducing computational overhead
+5. Improving response latency
 
-### 4. Use the API
+---
 
-```bash
-# Search
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "What are the best graphics cards for gaming?"}'
+## System Architecture
 
-# Similar query (should be a cache hit)
-curl -X POST http://localhost:8000/query \
-  -H "Content-Type: application/json" \
-  -d '{"query": "Which GPU is best for playing video games?"}'
-
-# Cache statistics
-curl http://localhost:8000/cache/stats
-
-# Clear cache
-curl -X DELETE http://localhost:8000/cache
+```text
+User Query
+     ↓
+Sentence Embedding Generation
+     ↓
+Fuzzy Cluster Prediction
+     ↓
+Semantic Cache Lookup
+     ├── Cache Hit  → Return Cached Results
+     └── Cache Miss → Vector Database Retrieval
+                           ↓
+                    Store Result in Cache
+                           ↓
+                    Return Response
 ```
 
-## Docker
+---
 
-```bash
-# Build and run
-docker build -t semcache .
-docker run -p 8000:8000 semcache
+## Technology Stack
 
-# Or with docker-compose
-docker-compose up --build
-```
+### Backend
+- FastAPI
+- Uvicorn
+- Python
 
-> **Note:** Run `python -m scripts.setup_data` before building the Docker image so the `data/` directory contains the pre-computed vector store and clustering models.
+### Machine Learning
+- Sentence Transformers
+- PCA
+- Gaussian Mixture Models
+- Cosine Similarity
 
-## Design Decisions
+### Data Layer
+- ChromaDB
+- Persistent Vector Storage
+- Custom LRU Cache
 
-### Embedding Model — `all-MiniLM-L6-v2`
-384-dim vectors. Chosen over larger models (e.g. `all-mpnet-base-v2` at 768-dim) for speed: the system needs low-latency query embedding, and smaller vectors reduce storage and clustering compute.
+### Deployment
+- Docker
+- Docker Compose
 
-### Fuzzy Clustering — GMM
-Gaussian Mixture Models produce genuine probability distributions over clusters (`predict_proba()`)—not just hard labels. A post about "gun legislation" gets significant probability mass in both a politics cluster and a firearms cluster. BIC scoring selects the optimal number of clusters without manual elbow-plot inspection.
+---
 
-### Semantic Cache — The Similarity Threshold
-The central tunable parameter is `CACHE_SIMILARITY_THRESHOLD` (default: 0.85). This single value controls what "close enough" means:
+## Core Features
 
-| Threshold | Behaviour | Hit Rate | Quality |
-|-----------|-----------|----------|---------|
-| 0.95 | Near-exact paraphrases only | Very low | Very high |
-| 0.90 | Close paraphrases | Moderate | High |
-| **0.85** | **Semantically equivalent queries** | **Good** | **High** |
-| 0.80 | Broadly similar topics | High | Moderate |
-| 0.70 | Loosely related queries | Very high | Low |
+- Semantic Search
+- Fuzzy Clustering
+- Adaptive Semantic Cache
+- Cluster-Aware Retrieval
+- Analytics Support
 
-The insight: changing the threshold doesn't just adjust hit-rate—it changes *what* the cache fundamentally is. At 0.95 it's a deduplication engine; at 0.85 a semantic equivalence detector; at 0.70 a topic classifier.
+---
 
-### Cluster-Aware Cache Lookup
-Instead of comparing a query against ALL cached entries (O(n)), we only check the top-2 GMM cluster candidates (O(n/k)). This is where clustering does "real work" for the cache.
+## Project Highlights
 
-### Data Cleaning
-Headers, quoted replies, signatures, emails, URLs, and file paths are stripped. Posts under 50 characters after cleaning are dropped—too little signal for meaningful embeddings.
+- End-to-end semantic retrieval pipeline
+- Production-grade FastAPI service
+- Intelligent cache optimization
+- Explainable clustering strategy
+- Modular architecture
+- Dockerized deployment
+- Low-latency information retrieval system
 
-## Clustering Analysis
+---
 
-After running `python -m scripts.setup_data`, additional analysis is available:
+## Future Enhancements
 
-```bash
-python -m analysis.clustering_analysis
-```
+- Multi-user authentication
+- Dashboard for cache analytics
+- Query monitoring and visualization
+- Streaming document ingestion
+- Hybrid keyword + vector search
+- Distributed semantic caching
+- Retrieval-Augmented Generation integration
 
-This produces:
-- Cluster composition with purity scores
-- Category ↔ cluster cross-tabulation
-- Fuzzy membership statistics
-- Boundary documents (highest entropy)
-- Cluster overlap matrix
+---
 
-## Project Structure
+## Tagline
 
-```
-├── app/
-│   ├── main.py              # FastAPI endpoints
-│   ├── config.py             # Tunable parameters
-│   ├── data_loader.py        # Dataset cleaning
-│   ├── embeddings.py         # Embedding model wrapper
-│   ├── vector_store.py       # ChromaDB wrapper
-│   ├── clustering.py         # GMM fuzzy clustering
-│   ├── semantic_cache.py     # Custom cache (no libraries)
-│   └── search.py             # Query orchestration
-├── scripts/
-│   └── setup_data.py         # One-time data ingestion
-├── analysis/
-│   └── clustering_analysis.py
-├── requirements.txt
-├── Dockerfile
-├── docker-compose.yml
-└── README.md
-```
-# SemCche
+**CacheVibe – An Intelligent Semantic Search and Adaptive Caching Platform for Low-Latency Information Retrieval.**
