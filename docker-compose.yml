@@ -1,0 +1,12 @@
+version: "3.9"
+
+services:
+  semcache:
+    build: .
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./data:/app/data   # persist vector store and clustering models
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
