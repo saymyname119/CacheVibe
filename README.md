@@ -17,6 +17,71 @@ The system demonstrates practical applications of:
 
 ---
 
+## Quick Start
+
+### 1. Set up the environment
+
+```bash
+python3 -m venv venv
+source venv/bin/activate
+pip install -r requirements.txt
+```
+
+### 2. Run data setup (one-time)
+
+This downloads the 20 Newsgroups dataset, computes embeddings, indexes them in ChromaDB, and fits the clustering model.
+
+```bash
+python -m scripts.setup_data
+```
+
+### 3. Start the service
+
+```bash
+uvicorn app.main:app --host 0.0.0.0 --port 8000
+```
+
+### 4. Use the API
+
+```bash
+# Search
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "What are the best graphics cards for gaming?"}'
+
+# Similar query (should be a cache hit)
+curl -X POST http://localhost:8000/query \
+  -H "Content-Type: application/json" \
+  -d '{"query": "Which GPU is best for playing video games?"}'
+
+# Cache statistics
+curl http://localhost:8000/cache/stats
+
+# Clear cache
+curl -X DELETE http://localhost:8000/cache
+```
+
+---
+
+## Docker
+
+### Build and run
+
+```bash
+docker build -t semcache .
+docker run -p 8000:8000 semcache
+```
+
+### Or with docker-compose
+
+```bash
+docker-compose up --build
+```
+
+**Note:** Run `python -m scripts.setup_data` before building the Docker image so the `data/` directory contains the pre-computed vector store and clustering models.
+
+---
+
 ## Problem Statement
 
 Traditional search systems repeatedly execute expensive retrieval operations even when users ask semantically equivalent questions.
@@ -61,22 +126,26 @@ Semantic Cache Lookup
 ## Technology Stack
 
 ### Backend
+
 - FastAPI
 - Uvicorn
 - Python
 
 ### Machine Learning
+
 - Sentence Transformers
 - PCA
 - Gaussian Mixture Models
 - Cosine Similarity
 
 ### Data Layer
+
 - ChromaDB
 - Persistent Vector Storage
 - Custom LRU Cache
 
 ### Deployment
+
 - Docker
 - Docker Compose
 
